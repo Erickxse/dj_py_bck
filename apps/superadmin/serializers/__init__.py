@@ -1,0 +1,1 @@
+from .stand_serializers import CexStandSerializer
