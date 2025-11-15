@@ -3,31 +3,6 @@ from rest_framework import serializers
 from .models import CexStand, CexPlan, CexSubscription, CexExhibition, Profile
 from apps.authentication.models import CexCountry
 from apps.service_product.models import CexServiceProduct
-from django.conf import settings
-
-
-def build_media_url(filename):
-    """
-    Construye la URL completa para un archivo de media.
-    Si S3 está habilitado, retorna la URL de S3.
-    Si no, retorna la URL local relativa.
-    """
-    if not filename:
-        return None
-    
-    # Si ya es una URL completa, devolverla tal cual
-    if filename.startswith('http://') or filename.startswith('https://'):
-        return filename
-    
-    # Si USE_S3_MEDIA está habilitado, construir URL de S3
-    if getattr(settings, 'USE_S3_MEDIA', False):
-        media_url = getattr(settings, 'MEDIA_URL', '')
-        # MEDIA_URL ya incluye el dominio completo de S3 cuando USE_S3_MEDIA=True
-        return f"{media_url}{filename}"
-    
-    # Fallback a URL local
-    return f"{settings.MEDIA_URL}{filename}"
-
 
 class CexStandSerializer(serializers.ModelSerializer):
     code = serializers.SerializerMethodField()
@@ -51,15 +26,10 @@ class CexStandSerializer(serializers.ModelSerializer):
             return None
         
     def to_representation(self, instance):
-        """Sobrescribir para convertir nombres de archivo a URLs completas de S3"""
         data = super().to_representation(instance)
-        
-        # Convertir img a URL completa
-        if data.get('img'):
-            # Primero obtener solo el nombre base (por si trae ruta)
-            filename = os.path.basename(data['img'])
-            data['img'] = build_media_url(filename)
-        
+        raw = data.get('img')
+        if raw:
+            data['img'] = os.path.basename(raw)
         return data
     
     def get_country(self, obj):
@@ -85,21 +55,6 @@ class CexStandListSerializer(serializers.ModelSerializer):
         model = CexStand
         fields = ['id', 'stand_name', 'slug', 'img',
                   'plan_id', 'country_name', 'imgs_obras', 'country']
-
-    def to_representation(self, instance):
-        """Sobrescribir para convertir nombres de archivo a URLs completas de S3"""
-        data = super().to_representation(instance)
-        
-        # Convertir img del stand a URL completa
-        if data.get('img'):
-            filename = os.path.basename(data['img']) if '/' in str(data['img']) else data['img']
-            data['img'] = build_media_url(filename)
-        
-        # Convertir imgs_obras (lista de imágenes) a URLs completas
-        if data.get('imgs_obras'):
-            data['imgs_obras'] = [build_media_url(img) for img in data['imgs_obras'] if img]
-        
-        return data
 
     def get_isdeleted(self, obj):
         # Convertir bytes a booleano
@@ -150,16 +105,6 @@ class MostQuotedStandSerializer(serializers.Serializer):
     slug = serializers.CharField()
     img = serializers.CharField(allow_null=True)
     works = serializers.IntegerField()
-    
-    def to_representation(self, instance):
-        """Sobrescribir para convertir nombres de archivo a URLs completas de S3"""
-        data = super().to_representation(instance)
-        
-        # Convertir img a URL completa
-        if data.get('img'):
-            data['img'] = build_media_url(data['img'])
-        
-        return data
     
 class PlanSerializer(serializers.ModelSerializer):
     class Meta:

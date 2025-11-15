@@ -3,33 +3,7 @@ from .models import CexServiceProduct
 from apps.stand.models import CexStand
 from apps.category.models import CexCategory
 from apps.stand.models import CexCountry
-from django.conf import settings
 import re
-
-
-def build_media_url(filename):
-    """
-    Construye la URL completa para un archivo de media.
-    Si S3 está habilitado, retorna la URL de S3.
-    Si no, retorna la URL local relativa.
-    """
-    if not filename:
-        return None
-    
-    # Si ya es una URL completa, devolverla tal cual
-    if filename.startswith('http://') or filename.startswith('https://'):
-        return filename
-    
-    # Si USE_S3_MEDIA está habilitado, construir URL de S3
-    if getattr(settings, 'USE_S3_MEDIA', False):
-        media_url = getattr(settings, 'MEDIA_URL', '')
-        # MEDIA_URL ya incluye el dominio completo de S3 cuando USE_S3_MEDIA=True
-        # Por ejemplo: https://artex-la.s3.us-east-2.amazonaws.com/
-        return f"{media_url}{filename}"
-    
-    # Fallback a URL local
-    return f"{settings.MEDIA_URL}{filename}"
-
 
 class CexServiceProductSerializer(serializers.ModelSerializer):
     stand_name = serializers.SerializerMethodField()
@@ -51,25 +25,6 @@ class CexServiceProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'slug', 'name', 'description', 'image', 'brand', 'specifications', 'price', 'images', 'stand_name', 'stand_id',
                   'stand_slug', 'obras', 'category_id', 'country', 'country_name', 'name_cat_3', 'slug_cat_1', 'slug_cat_2', 'slug_cat_3', 'image_stand', 
                   'creation_date', 'size', 'type']  # Agregado
-
-    def to_representation(self, instance):
-        """Sobrescribir para convertir nombres de archivo a URLs completas de S3"""
-        data = super().to_representation(instance)
-        
-        # Convertir image a URL completa
-        if data.get('image'):
-            data['image'] = build_media_url(data['image'])
-        
-        # Convertir images (string separado por comas) a URLs completas
-        if data.get('images'):
-            filenames = [f.strip() for f in data['images'].split(',') if f.strip()]
-            data['images'] = ','.join([build_media_url(f) for f in filenames])
-        
-        # Convertir image_stand a URL completa
-        if data.get('image_stand'):
-            data['image_stand'] = build_media_url(data['image_stand'])
-        
-        return data
 
     def get_stand_name(self, obj):
         # Obtener el stand correspondiente utilizando el stand_id
@@ -181,27 +136,10 @@ class CexServiceProductDataSerializer(serializers.ModelSerializer):
     country = serializers.SerializerMethodField()
     
     def to_representation(self, instance):
-        """Sobrescribir para convertir nombres de archivo a URLs completas de S3"""
         data = super().to_representation(instance)
-        
-        # Limpiar comas iniciales de images
         img_str = data.get('images')
         if isinstance(img_str, str):
             data['images'] = img_str.lstrip(',')
-        
-        # Convertir image a URL completa
-        if data.get('image'):
-            data['image'] = build_media_url(data['image'])
-        
-        # Convertir images (string separado por comas) a URLs completas
-        if data.get('images'):
-            filenames = [f.strip() for f in data['images'].split(',') if f.strip()]
-            data['images'] = ','.join([build_media_url(f) for f in filenames])
-        
-        # Convertir image_stand a URL completa
-        if data.get('image_stand'):
-            data['image_stand'] = build_media_url(data['image_stand'])
-        
         return data
     
     class Meta:
